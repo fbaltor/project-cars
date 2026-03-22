@@ -1,0 +1,123 @@
+min_version = "2025.1.0"
+
+[tools]
+python = "3.14.3"
+uv = "latest"
+
+[env]
+_.python.venv = { path = ".venv", create = true }
+DATABASE_URL = "postgresql://cars:cars@localhost:5432/cars_dev"
+
+# ---------- Dev tasks ----------
+
+[tasks.test]
+description = "Run all tests"
+depends = ["install"]
+run = "uv run pytest tests/ -x --tb=short"
+
+[tasks."test:unit"]
+description = "Run unit tests only"
+depends = ["install"]
+run = "uv run pytest tests/unit/ -x --tb=short"
+
+[tasks."test:integ"]
+description = "Run integration tests (hits real APIs, slower)"
+depends = ["install"]
+run = "uv run pytest tests/integration/ -x --tb=short"
+
+[tasks.lint]
+description = "Lint and check formatting"
+run = ["uv run ruff check src/ tests/", "uv run ruff format --check src/ tests/"]
+
+[tasks.format]
+description = "Auto-format code"
+run = "uv run ruff format src/ tests/"
+
+[tasks.check]
+description = "Lint + unit tests (pre-commit gate)"
+depends = ["lint", "test:unit"]
+
+[tasks.install]
+description = "Install Python dependencies via uv"
+run = "uv sync"
+sources = ["pyproject.toml", "uv.lock"]
+outputs = [".venv/**"]
+
+# ---------- DB tasks ----------
+
+[tasks."db:up"]
+description = "Start PostgreSQL and wait until healthy"
+run = "docker compose up -d --wait"
+
+[tasks."db:down"]
+description = "Stop PostgreSQL (preserves data volume)"
+run = "docker compose down"
+
+[tasks."db:reset"]
+description = "Destroy and recreate the database (DELETES ALL DATA)"
+run = ["docker compose down -v", "docker compose up -d --wait"]
+
+[tasks."db:migrate"]
+description = "Apply pending schema migrations"
+depends = ["db:up"]
+run = "uv run python -m src.db_migrate"
+
+[tasks."db:shell"]
+description = "Open a psql shell against the dev database"
+run = "docker compose exec db psql -U cars -d cars_dev"
+
+[tasks."db:status"]
+description = "Show PostgreSQL container health"
+run = "docker compose ps db"
+
+# ---------- Pipeline tasks ----------
+
+[tasks.candidates]
+description = "Discover candidate models from FIPE within budget range"
+depends = ["install"]
+run = "uv run python -m src.cli candidates"
+
+[tasks.collect]
+description = "Run all collectors for all candidates"
+depends = ["install"]
+run = "uv run python -m src.cli collect"
+
+[tasks."collect:fipe"]
+description = "Run FIPE collector only"
+depends = ["install"]
+run = "uv run python -m src.cli collect --source fipe"
+
+[tasks."collect:ncap"]
+description = "Run Latin NCAP collector only"
+depends = ["install"]
+run = "uv run python -m src.cli collect --source ncap"
+
+[tasks."collect:cnw"]
+description = "Run Carros na Web collector only"
+depends = ["install"]
+run = "uv run python -m src.cli collect --source cnw"
+
+[tasks."collect:club"]
+description = "Run CarroClub collector only"
+depends = ["install"]
+run = "uv run python -m src.cli collect --source carroclub"
+
+[tasks."collect:inmetro"]
+description = "Run Inmetro PBEV collector only"
+depends = ["install"]
+run = "uv run python -m src.cli collect --source inmetro"
+
+[tasks.score]
+description = "Score and rank all candidates"
+depends = ["install"]
+run = "uv run python -m src.cli score"
+
+[tasks.report]
+description = "Generate markdown report with ranked shortlist"
+depends = ["install"]
+run = "uv run python -m src.cli report"
+
+[tasks.status]
+description = "Show data collection progress per source per model"
+depends = ["install"]
+run = "uv run python -m src.cli status"

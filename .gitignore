@@ -15,3 +15,10 @@ __pycache__/
 
 # Output (generated reports)
 output/
+
+# Environment / secrets
+.env
+
+# Database
+*.db
+*.sqlite

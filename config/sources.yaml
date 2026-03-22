@@ -1,0 +1,32 @@
+fipe:
+  parallelum_v2: "https://parallelum.com.br/fipe/api/v2"
+  parallelum_v1: "https://parallelum.com.br/fipe/api/v1"
+  brasil_api: "https://brasilapi.com.br/api/fipe"
+  rate_limit:
+    parallelum_requests_per_day: 500
+    request_delay_seconds: 0.5
+
+latin_ncap:
+  results_endpoint: "https://www.latinncap.com/get_res.php"
+  detail_url: "https://www.latinncap.com/en/result/{id}/{slug}"
+  rate_limit:
+    request_delay_seconds: 1.0
+
+carros_na_web:
+  base_url: "https://www.carrosnaweb.com.br"
+  analysis_path: "/analise.asp?codigo={codigo}"
+  owner_opinions_path: "/opiniaolista.asp?fabricante={brand}&modelo={model}"
+  theft_stats_path: "/roubadosestatistica.asp"
+  rate_limit:
+    request_delay_seconds: 1.0
+
+carroclub:
+  base_url: "https://www.carroclub.com.br"
+  opinions_path: "/carros/{brand}/{model}/opiniao-do-dono/"
+  rate_limit:
+    request_delay_seconds: 1.0
+
+inmetro_pbev:
+  pdf_urls:
+    2025: "https://www.gov.br/inmetro/pt-br/assuntos/avaliacao-da-conformidade/programa-brasileiro-de-etiquetagem/tabelas-de-eficiencia-energetica/veiculos-automotivos-pbe-veicular/mascara-pbev-2025-mar-11.pdf/@@download/file"
+    2024: "https://www.gov.br/inmetro/pt-br/assuntos/avaliacao-da-conformidade/programa-brasileiro-de-etiquetagem/tabelas-de-eficiencia-energetica/veiculos-automotivos-pbe-veicular/pbe-veicular-2024-1.pdf/@@download/file"

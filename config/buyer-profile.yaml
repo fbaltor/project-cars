@@ -1,0 +1,11 @@
+budget:
+  min: 60000
+  max: 90000
+
+vehicle:
+  max_age_years: 5
+  max_mileage_km: 80000
+  categories: [hatch, sedan, suv, crossover]
+  fuel_types: [flex, hybrid]
+
+use_case: city_highway_mix

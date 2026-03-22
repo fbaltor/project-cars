@@ -1,0 +1,13 @@
+# Weights must sum to 1.0
+weights:
+  depreciation: 0.20        # Lower annual depreciation = better
+  maintenance_cost: 0.15     # Lower avg annual cost = better
+  owner_satisfaction: 0.15   # Higher aggregate rating = better
+  safety: 0.15               # Higher NCAP stars/% = better
+  fuel_efficiency: 0.10      # Higher km/L = better
+  theft_risk: 0.10           # Lower theft index = better
+  resale_liquidity: 0.10     # Higher annual sales volume = better
+  price_vs_fipe: 0.05        # How close to budget sweet spot
+
+# Missing data strategy: assign median score (not zero)
+missing_data_strategy: median

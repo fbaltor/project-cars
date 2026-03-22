@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "Running pre-commit checks (mise run check)..."
+mise run check
+
+if [ $? -ne 0 ]; then
+    echo "Pre-commit checks failed. Fix issues and try again."
+    exit 1
+fi

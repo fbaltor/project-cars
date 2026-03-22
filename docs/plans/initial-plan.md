@@ -26,11 +26,15 @@ use_case: city_highway_mix
 ```
 project-cars/
 ├── CLAUDE.md                    # Agent conventions & commands
-├── justfile                     # Task runner (make-like, cross-platform)
+├── mise.toml                    # Single entry point: tools + env + tasks
+├── compose.yml                  # Docker Compose for Postgres
+├── .githooks/pre-commit         # Runs mise run check before every commit
 ├── config/
 │   ├── buyer-profile.yaml       # Buyer constraints (above)
 │   ├── scoring-weights.yaml     # Dimension weights for ranking
 │   └── sources.yaml             # Data source URLs, rate limits, selectors
+├── db/
+│   └── migrations/              # SQL migration files (yoyo-migrations)
 ├── src/
 │   ├── collectors/              # One module per data source
 │   │   ├── __init__.py
@@ -39,11 +43,12 @@ project-cars/
 │   │   ├── carros_na_web.py     # Carros na Web HTML scraper
 │   │   ├── carroclub.py         # CarroClub HTML scraper
 │   │   └── inmetro_pbev.py      # Inmetro PDF parser (one-time)
-│   ├── models.py                # Data models (dataclasses/Pydantic)
+│   ├── models.py                # Pydantic data models
 │   ├── scoring.py               # Scoring & ranking engine
 │   ├── candidates.py            # Candidate discovery (FIPE scan)
-│   ├── db.py                    # SQLite persistence layer
-│   └── cli.py                   # CLI entry point (click/typer)
+│   ├── db.py                    # Postgres persistence (psycopg3, upserts)
+│   ├── db_migrate.py            # yoyo migration runner
+│   └── cli.py                   # CLI entry point (typer)
 ├── data/
 │   ├── raw/                     # Raw fetched data (JSON/HTML snapshots)
 │   └── processed/               # Cleaned, normalized data
@@ -66,12 +71,12 @@ Set up the agent-friendly foundation before any data work.
 
 **Files to create:**
 - `CLAUDE.md` — project conventions, exact commands, architectural rules
-- `justfile` — standardized targets: `just test`, `just lint`, `just collect`, `just score`, `just report`
+- `mise.toml` — standardized targets: `mise run test`, `mise run lint`, `mise run collect`, `mise run score`, `mise run report`
 - `pyproject.toml` — Python 3.12+, dependencies: `httpx`, `beautifulsoup4`, `pdfplumber`, `pydantic`, `typer`, `rich`, `sqlite-utils`, `pyyaml`, `pytest`
 - `config/buyer-profile.yaml`, `config/scoring-weights.yaml`, `config/sources.yaml`
 
 **CLAUDE.md essentials:**
-- Build/test commands: `just test`, `just lint`, `just check`
+- Build/test commands: `mise run test`, `mise run lint`, `mise run check`
 - Architecture: collectors are independent, stateless functions; db.py handles all persistence; cli.py is the only entry point
 - Conventions: all CLI commands support `--json` and `--dry-run`; collectors return typed Pydantic models; never print — use `rich` for human output, JSON for machine output
 - Never do: hardcode URLs (use sources.yaml), commit raw HTML/API snapshots to git
@@ -91,7 +96,7 @@ Define the core data structures and persistence layer.
 - `TheftIndex` — model, index_value
 - `ModelScore` — model, dimension_scores, weighted_total, rank
 
-**Database:** SQLite via `sqlite-utils`. One table per model above. Upsert semantics keyed on natural identifiers (brand+model+year, not auto-increment).
+**Database:** PostgreSQL 17 via Docker Compose, accessed with `psycopg[binary]` (psycopg3). Schema managed by `yoyo-migrations` (plain SQL files in `db/migrations/`). Upsert semantics via `INSERT ... ON CONFLICT DO UPDATE` keyed on natural identifiers (brand+model+year, not auto-increment).
 
 ### Step 3 — Candidate Discovery
 
@@ -102,7 +107,7 @@ Before collecting detailed data, discover which models fall in the budget range.
 2. For each model+year, fetch FIPE price
 3. Filter to R$ 60k-90k range (configurable)
 4. Persist candidate list to DB
-5. CLI: `just candidates` → outputs candidate list as table or JSON
+5. CLI: `mise run candidates` → outputs candidate list as table or JSON
 
 **Rate limit management:** Parallelum API = 500 req/day free. A full scan of ~90 brands × top models × 5 years could exceed this. Strategy:
 - Cache aggressively — only fetch what's not in DB
@@ -174,7 +179,7 @@ weights:
 - Ranked table with scores per dimension and weighted total
 - Per-model detail cards (all raw data + scores)
 - Comparison charts (exportable)
-- CLI: `just score` → ranked table; `just report` → full markdown report in `output/`
+- CLI: `mise run score` → ranked table; `mise run report` → full markdown report in `output/`
 
 ### Step 6 — Report Generation
 
@@ -198,31 +203,31 @@ car-selector status                    # Show collection progress per source per
 
 All commands: `--json` for machine output, `--dry-run` for preview, `--verbose` for debug logging. Exit codes: 0=success, 1=expected failure (no data), 2=unexpected error.
 
-## justfile Targets
+## mise.toml Tasks
 
 ```
-test           # Run all tests
-test-unit      # Unit tests only
-test-integ     # Integration tests (hits real APIs, slower)
-lint           # ruff check + ruff format --check
-format         # ruff format
-check          # lint + test-unit (pre-commit gate)
-candidates     # Discover candidate models from FIPE
-collect        # Run all collectors for all candidates
-collect-fipe   # Run FIPE collector only
-collect-ncap   # Run Latin NCAP collector only
-collect-cnw    # Run Carros na Web collector only
-collect-club   # Run CarroClub collector only
-collect-inmetro # Run Inmetro collector only
-score          # Score and rank all candidates
-report         # Generate markdown report
-status         # Show data collection progress
+test            # Run all tests
+test:unit       # Unit tests only
+test:integ      # Integration tests (hits real APIs, slower)
+lint            # ruff check + ruff format --check
+format          # ruff format
+check           # lint + test:unit (pre-commit gate)
+candidates      # Discover candidate models from FIPE
+collect         # Run all collectors for all candidates
+collect:fipe    # Run FIPE collector only
+collect:ncap    # Run Latin NCAP collector only
+collect:cnw     # Run Carros na Web collector only
+collect:club    # Run CarroClub collector only
+collect:inmetro # Run Inmetro collector only
+score           # Score and rank all candidates
+report          # Generate markdown report
+status          # Show data collection progress
 ```
 
 ## Agent-Driven Design Principles Applied
 
 1. **CLAUDE.md as the entry point** — exact commands, architectural rules, permission tiers (always/ask-first/never)
-2. **justfile as task discovery** — `just --list` gives agents the full menu
+2. **mise.toml as task discovery** — `mise tasks` (or `mise tasks --json`) gives agents the full menu
 3. **Declarative config** — buyer profile, weights, sources all in YAML; change behavior without changing code
 4. **Idempotent operations** — upsert DB writes, cached API responses, resumable collection
 5. **Structured output** — every command supports `--json`; no print-only diagnostics
@@ -234,9 +239,9 @@ status         # Show data collection progress
 ## Verification Plan
 
 1. **Unit tests:** Each collector tested against fixture data (saved HTML/JSON responses). Scoring engine tested with synthetic data covering edge cases (missing dimensions, ties, boundary values).
-2. **Integration test:** `just candidates` → `just collect` → `just score` → `just report` end-to-end with real API calls. Verify output report contains expected sections and >0 ranked models.
+2. **Integration test:** `mise run candidates` → `mise run collect` → `mise run score` → `mise run report` end-to-end with real API calls. Verify output report contains expected sections and >0 ranked models.
 3. **Manual verification:** Spot-check 3-5 models in the output against FIPE website and Carros na Web to confirm data accuracy.
-4. **Agent verification:** Claude Code should be able to run `just check && just candidates --dry-run && just status` and get meaningful, actionable output.
+4. **Agent verification:** Claude Code should be able to run `mise run check && mise run candidates --dry-run && mise run status` and get meaningful, actionable output.
 
 ## Dependencies
 
@@ -247,14 +252,15 @@ pdfplumber         # PDF table extraction (Inmetro)
 pydantic           # Data models + validation
 typer              # CLI framework
 rich               # Human-readable terminal output
-sqlite-utils       # SQLite wrapper
+psycopg[binary]    # PostgreSQL driver (psycopg3)
+yoyo-migrations    # Schema migrations (plain SQL files)
 pyyaml             # Config parsing
 ruff               # Linter + formatter
 pytest             # Testing
 pytest-httpx       # HTTP mocking for tests
 ```
 
-Package manager: `uv` (fast, lockfile support).
+Package manager: `uv` (fast, lockfile support). Runtimes managed by `mise`.
 
 ## What This Plan Does NOT Cover (deferred to later)
 

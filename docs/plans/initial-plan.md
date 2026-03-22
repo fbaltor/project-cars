@@ -63,7 +63,7 @@ project-cars/
 
 ## Implementation Steps
 
-### Step 1 — Project Scaffolding & Harness
+### Step 1 — Project Scaffolding & Harness ✅
 
 Set up the agent-friendly foundation before any data work.
 
@@ -81,7 +81,7 @@ Set up the agent-friendly foundation before any data work.
 - Conventions: all CLI commands support `--json` and `--dry-run`; collectors return typed Pydantic models; never print — use `rich` for human output, JSON for machine output
 - Never do: hardcode URLs (use sources.yaml), commit raw HTML/API snapshots to git
 
-### Step 2 — Shared Infrastructure (finish the harness)
+### Step 2 — Shared Infrastructure (finish the harness) ✅
 
 Before any feature code, build the downstream enforcement and shared utilities that all collectors depend on. This is still harness — not features.
 
@@ -147,6 +147,15 @@ All tables include `created_at` and `updated_at` timestamps.
 - `ModelScore` — brand, model, dimension_scores (dict), weighted_total, rank
 
 **Step 2 exit criteria:** `mise run check` passes with error types, config loader, DB layer, and Pydantic models all tested. `mise run db:migrate` creates all tables. An agent can run `mise run db:status` and get meaningful output.
+
+**Step 2 manual verification:**
+- [ ] `mise run db:up` starts Postgres, `mise run db:status` shows healthy
+- [ ] `mise run db:migrate` creates all 8 tables (vehicle_models, fipe_prices, safety_ratings, fuel_efficiency, maintenance_costs, owner_ratings, theft_index, model_scores) — verify with `mise run db:shell` then `\dt`
+- [ ] Running `mise run db:migrate` a second time prints "No pending migrations." (idempotent)
+- [ ] `mise run db:reset && mise run db:migrate` recreates everything cleanly from scratch
+- [ ] `mise run test:integ` passes (upserts and idempotency against real Postgres)
+- [ ] Config validation: edit `config/scoring-weights.yaml` to make weights sum to 0.5, run `uv run python -c "from src.config import load_config; load_config()"` — should raise a clear error about weights summing to 1.0. Revert after.
+- [ ] Error serialization: run `uv run python -c "from src.errors import RateLimitedError; print(RateLimitedError('429 on /cars').to_dict())"` — should print RFC 7807-style dict with suggestions and retry_after_seconds
 
 ### Step 3 — First Vertical Slice (FIPE collector end-to-end)
 

@@ -1,0 +1,17 @@
+# Claude Code runtime (personal/ephemeral)
+.claude/*
+!.claude/skills/
+
+# Data artifacts
+data/raw/
+data/processed/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.ruff_cache/
+.pytest_cache/
+
+# Output (generated reports)
+output/
